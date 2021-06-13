@@ -72,7 +72,6 @@ void main() {
 		pc_FragColor.rgb = vec3(ambient + diffuse) * Albedo;
 	}
 
-
 	pc_FragColor.a = 1.0;
 
 }

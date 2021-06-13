@@ -5,6 +5,7 @@ import { Blur } from './blur';
 import ssaoFrag from '../shaders/ssao.frag';
 // @ts-ignore
 import ssaoVert from '../shaders/ssao.vert';
+import { createScreenQuadGeometry } from '../utility/createScreenQuad';
 
 type GBuffer = {
 	normal: THREE.Texture;
@@ -74,12 +75,14 @@ export class SSAO {
 			fragmentShader: ssaoFrag,
 			glslVersion: THREE.GLSL3,
 			uniforms: this.uniforms,
+			depthTest: false,
+			depthWrite: false,
 		});
 
 		this.blurPass = new Blur(this.renderer, this.renderTarget.texture, this.noise, gBuffer)
 
 		this.scene.add(new THREE.Mesh(
-      new THREE.PlaneGeometry(2, 2), 
+      createScreenQuadGeometry(), 
       this.material
     ));
 

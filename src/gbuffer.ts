@@ -11,9 +11,12 @@ export default class GBuffer {
 	scene: THREE.Scene;
 
 	constructor(public renderer: THREE.WebGLRenderer) {
-		this.mrt = new THREE.WebGLMultipleRenderTargets(window.innerWidth, window.innerHeight, 4);
+		const s = new THREE.Vector2()
+		this.renderer.getSize(s)
 
-		this.camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 100);
+		this.mrt = new THREE.WebGLMultipleRenderTargets(s.x, s.y, 4);
+
+		this.camera = new THREE.PerspectiveCamera(70, s.x / s.y, 0.1, 100);
 		this.camera.position.set(0, 0, 5);
 		this.camera.position.set(0, 5, 5);
 		this.camera.lookAt(0, 0, 0);

@@ -17,9 +17,10 @@ import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader';
 
 import { SSAO } from './passes/ssao';
 
-import { createLeva } from './passes/gui';
+import { createLeva } from './utility/gui';
 
 import GBuffer from './gbuffer';
+import { createScreenQuadGeometry } from './utility/createScreenQuad';
 
 const loader = new GLTFLoader();
 const dracoLoader = new DRACOLoader();
@@ -56,6 +57,7 @@ class App {
 		this.raycaster = new THREE.Raycaster();
 
 		this.renderer = new THREE.WebGLRenderer();
+		this.renderer.toneMapping = THREE.NoToneMapping
 		this.renderer.setAnimationLoop(this.render);
 
 		element.appendChild(this.renderer.domElement);
@@ -110,9 +112,27 @@ class App {
 	render = () => {
 		this.beforeRender();
 
+		this.renderer.autoClear = false
+
 		this.renderer.setRenderTarget(null);
 		this.renderer.render(this.scene, this.camera);
+
+		this.afterRender()
 	};
+
+	afterCallbacks: AnimationCallback[] = [];
+
+	after = (callback: AnimationCallback) => {
+		this.afterCallbacks.push(callback);
+	};
+
+	afterRender = () => {
+		for (let i = 0; i < this.afterCallbacks.length; i++) {
+			this.afterCallbacks[i]({ clock: this.clock, camera: this.camera, raycaster: this.raycaster });
+		}
+
+		this.renderer.autoClear = true
+	}
 
 	add = (component: any) => {
 		this.scene.add(component());
@@ -122,7 +142,7 @@ class App {
 const app = new App(document.querySelector<HTMLDivElement>('#app')!);
 
 loader.load(
-	'dragon.gltf',
+	'https://market-assets.fra1.cdn.digitaloceanspaces.com/market-assets/models/bunny/model.gltf',
 	(gltf) => {
 		{
 			const gBuffer = new GBuffer(app.renderer);
@@ -208,7 +228,7 @@ loader.load(
 				const material = new THREE.RawShaderMaterial({
 					uniforms: {
 						tColor: {
-							value: new THREE.Color('#ff005b'),
+							value: new THREE.Color('#fff'),
 						},
 						materialId: {
 							value: MATERIALS.BASIC
@@ -222,7 +242,6 @@ loader.load(
 					},
 				});
 
-				material.uniforms.tColor.value.set('#333');
 				const mesh = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), material);
 
 				mesh.rotation.x = -Math.PI / 2;
@@ -250,10 +269,12 @@ loader.load(
 					viewPos: { value: new THREE.Vector3(0, 0, 0) },
 					time: { value: 0 },
 				},
+				depthTest: false,
+				depthWrite: false,
 				glslVersion: THREE.GLSL3,
 			});
 
-			app.add(() => new THREE.Mesh(new THREE.PlaneGeometry(2, 2), finalMaterial));
+			app.add(() => new THREE.Mesh(createScreenQuadGeometry(), finalMaterial));
 
 			const lightPosition = new THREE.Vector3(5, 2, 0);
 			const lightPositionView = lightPosition.clone();
@@ -264,7 +285,7 @@ loader.load(
 
 			app.animate(({ clock }) => {
 				const t = clock.getElapsedTime();
-				light.position.set(Math.sin(t) * 10., 2, 0);
+				// light.position.set(Math.sin(t) * 10., 2, 0);
 
 				viewMatrix.multiplyMatrices(gBuffer.camera.matrixWorldInverse, light.matrixWorld);
 
@@ -275,11 +296,21 @@ loader.load(
 				finalMaterial.uniforms.lightPosition.value.copy(lightPositionView);
 			});
 
+			// GUI
+			const GUIScene = new THREE.Scene()
+			const GUICamera = gBuffer.camera;
+
+			GUIScene.add(new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshNormalMaterial({ wireframe: true })))
+				
 			app.animate(() => {
 				gBuffer.render();
 				ssao.render();
 			});
 
+			app.after(() => {
+				app.renderer.render(GUIScene, GUICamera)
+			})
+			
 			const controls = new OrbitControls(gBuffer.camera, app.renderer.domElement);
 			gBuffer.camera.position.set(2.5, 2.5, 2);
 			gBuffer.camera.lookAt(0, 0, 0);

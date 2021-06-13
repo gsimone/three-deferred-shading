@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import blurFrag from '../shaders/blur.frag';
 // @ts-ignore
 import blurVert from '../shaders/blur.vert';
+import { createScreenQuadGeometry } from '../utility/createScreenQuad';
 
 type GBuffer = {
 	normal: THREE.Texture;
@@ -51,11 +52,13 @@ export class Blur {
 			vertexShader: blurVert,
 			fragmentShader: blurFrag,
 			glslVersion: THREE.GLSL3,
+			depthWrite: false,
+			depthTest: false,
 			uniforms,
 		});
 
 		this.scene.add(new THREE.Mesh(
-      new THREE.PlaneGeometry(2, 2), 
+      createScreenQuadGeometry(), 
       this.material
     ));
 	}
