@@ -16,6 +16,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader';
 
 import { SSAO } from './passes/ssao';
+import { ShadowMap } from './passes/shadowmap';
 
 import { createLeva } from './utility/gui';
 
@@ -29,8 +30,8 @@ loader.setDRACOLoader(dracoLoader);
 
 const MATERIALS = {
 	LAMBERT: 128,
-	BASIC: 0	
-}
+	BASIC: 0,
+};
 
 type AnimationCallback = (args: {
 	clock: THREE.Clock;
@@ -57,7 +58,7 @@ class App {
 		this.raycaster = new THREE.Raycaster();
 
 		this.renderer = new THREE.WebGLRenderer();
-		this.renderer.toneMapping = THREE.NoToneMapping
+		this.renderer.toneMapping = THREE.NoToneMapping;
 		this.renderer.setAnimationLoop(this.render);
 
 		element.appendChild(this.renderer.domElement);
@@ -112,12 +113,12 @@ class App {
 	render = () => {
 		this.beforeRender();
 
-		this.renderer.autoClear = false
+		this.renderer.autoClear = false;
 
 		this.renderer.setRenderTarget(null);
 		this.renderer.render(this.scene, this.camera);
 
-		this.afterRender()
+		this.afterRender();
 	};
 
 	afterCallbacks: AnimationCallback[] = [];
@@ -131,8 +132,8 @@ class App {
 			this.afterCallbacks[i]({ clock: this.clock, camera: this.camera, raycaster: this.raycaster });
 		}
 
-		this.renderer.autoClear = true
-	}
+		this.renderer.autoClear = true;
+	};
 
 	add = (component: any) => {
 		this.scene.add(component());
@@ -153,8 +154,8 @@ loader.load(
 						value: new THREE.Color('#ff005b'),
 					},
 					materialId: {
-						value: 128
-					}
+						value: 128,
+					},
 				},
 				vertexShader: gbufferVert,
 				fragmentShader: gbufferFrag,
@@ -164,39 +165,44 @@ loader.load(
 				glslVersion: THREE.GLSL3,
 			});
 
-			/**
-			 * DARGONS
-			 */
-			// @ts-ignore
-			const geometry: THREE.BufferGeometry = gltf.scene.children[0].geometry;
+			if (true) {
+				/**
+				 * BUNNIES
+				 */
+				// @ts-ignore
+				const geometry: THREE.BufferGeometry = gltf.scene.children[0].geometry;
 
-			const dummy = new THREE.Object3D();
-			const mat = material.clone();
-			const count = 128
-			const grid = Math.sqrt(count)/2
-			const mesh = new THREE.InstancedMesh(geometry, mat, count);
+				const dummy = new THREE.Object3D();
+				const mat = material.clone();
+				const count = 128;
+				const grid = Math.sqrt(count) / 2;
+				const mesh = new THREE.InstancedMesh(geometry, mat, count);
 
-			const instanceColors = [];
+				const instanceColors = [];
 
-			let z = 0;
-			for (let i = -grid; i < grid; i++) {
-				for (let j = -grid; j < grid; j++) {
-					dummy.position.set(i, 0, j);
-					dummy.scale.setScalar(0.3);
-					
-					instanceColors.push( Math.random() );
-					instanceColors.push( Math.random() );
-					instanceColors.push( Math.random() );
-					
-					dummy.updateMatrix();
-					mesh.setMatrixAt(z++, dummy.matrix);
+				let z = 0;
+				for (let i = -grid; i < grid; i++) {
+					for (let j = -grid; j < grid; j++) {
+						dummy.position.set(i, 0, j);
+						dummy.scale.setScalar(0.3);
+
+						instanceColors.push(Math.random());
+						instanceColors.push(Math.random());
+						instanceColors.push(Math.random());
+
+						dummy.updateMatrix();
+						mesh.setMatrixAt(z++, dummy.matrix);
+					}
 				}
+
+				geometry.setAttribute(
+					'instanceColor',
+					new THREE.InstancedBufferAttribute(new Float32Array(instanceColors), 3)
+				);
+
+				mesh.instanceMatrix.needsUpdate = true;
+				gBuffer.scene.add(mesh);
 			}
-
-			geometry.setAttribute( 'instanceColor', new THREE.InstancedBufferAttribute( new Float32Array( instanceColors ), 3 ) );
-
-			mesh.instanceMatrix.needsUpdate = true;
-			gBuffer.scene.add(mesh);
 
 			{
 				const material = new THREE.RawShaderMaterial({
@@ -205,8 +211,8 @@ loader.load(
 							value: new THREE.Color('#ff005b'),
 						},
 						materialId: {
-							value: MATERIALS.LAMBERT
-						}
+							value: MATERIALS.LAMBERT,
+						},
 					},
 					vertexShader: gbufferVert,
 					fragmentShader: gbufferFrag,
@@ -216,23 +222,71 @@ loader.load(
 					},
 				});
 
-				const mesh = new THREE.Mesh(new THREE.SphereGeometry(.5, 32, 32), material);
+				const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.5, 32, 32), material);
 
-				mesh.position.y = 2
+				mesh.position.y = 2;
+
+				gBuffer.scene.add(mesh);
+			}
+
+			{
+				const material = new THREE.RawShaderMaterial({
+					uniforms: {
+						tColor: {
+							value: new THREE.Color('#ff005b'),
+						},
+						materialId: {
+							value: MATERIALS.LAMBERT,
+						},
+					},
+					vertexShader: gbufferVert,
+					fragmentShader: gbufferFrag,
+					glslVersion: THREE.GLSL3,
+					defines: {
+						INSTANCED: false,
+					},
+				});
+
+				const mesh = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 32), material);
+
+				mesh.position.x = 3;
+
+				gBuffer.scene.add(mesh);
+			}
+
+			{
+				const material = new THREE.RawShaderMaterial({
+					uniforms: {
+						tColor: {
+							value: new THREE.Color('#ff005b'),
+						},
+						materialId: {
+							value: MATERIALS.LAMBERT,
+						},
+					},
+					vertexShader: gbufferVert,
+					fragmentShader: gbufferFrag,
+					glslVersion: THREE.GLSL3,
+					defines: {
+						INSTANCED: false,
+					},
+				});
+
+				const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.5), material);
 
 				gBuffer.scene.add(mesh);
 			}
 
 			/** Floor */
-			{
+			if (true) {
 				const material = new THREE.RawShaderMaterial({
 					uniforms: {
 						tColor: {
 							value: new THREE.Color('#fff'),
 						},
 						materialId: {
-							value: MATERIALS.BASIC
-						}
+							value: MATERIALS.BASIC,
+						},
 					},
 					vertexShader: gbufferVert,
 					fragmentShader: gbufferFrag,
@@ -296,21 +350,79 @@ loader.load(
 				finalMaterial.uniforms.lightPosition.value.copy(lightPositionView);
 			});
 
-			// GUI
-			const GUIScene = new THREE.Scene()
-			const GUICamera = gBuffer.camera;
+			/**
+			 * Shadowmap stuff
+			 */
+			const shadowmap = new ShadowMap(app.renderer, gBuffer.scene, {
+				position: lightPosition,
+			});
 
-			GUIScene.add(new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshNormalMaterial({ wireframe: true })))
-				
+			/**
+			 * HELPERS
+			 */
+			const HelperScene = new THREE.Scene();
+
+			{
+				const mesh = new THREE.Mesh(
+					new THREE.OctahedronGeometry(0.25),
+					new THREE.MeshNormalMaterial({ wireframe: true })
+				);
+
+				mesh.position.copy(lightPosition);
+
+				const origin = new THREE.Vector3(0, 0, 0);
+				const helper = new THREE.ArrowHelper(origin.sub(lightPosition).normalize(), lightPosition);
+
+				HelperScene.add(mesh);
+				HelperScene.add(helper);
+			}
+
+			/**
+			 * GUI
+			 */
+			const GUIScene = new THREE.Scene();
+			const GUICamera = new THREE.OrthographicCamera(
+				-window.innerWidth / 2,
+				window.innerWidth / 2,
+				window.innerHeight / 2,
+				-window.innerHeight / 2,
+				0.01,
+				10
+			);
+
+			GUICamera.position.z = 0.1;
+			GUICamera.lookAt(0, 0, 0);
+
+			/** Just something that will show the shadowmap  */
+			if (false) {
+				const [x, y] = [200, 200];
+
+				const mesh = new THREE.Mesh(
+					new THREE.PlaneGeometry(x, y),
+					new THREE.MeshBasicMaterial({
+						depthTest: false,
+						depthWrite: false,
+						map: shadowmap.renderTarget.texture,
+					})
+				);
+
+				mesh.position.x = window.innerWidth / 2 - x / 2;
+				mesh.position.y = -window.innerHeight / 2 + y / 2;
+
+				GUIScene.add(mesh);
+			}
+
 			app.animate(() => {
+				shadowmap.render();
 				gBuffer.render();
 				ssao.render();
 			});
 
 			app.after(() => {
-				app.renderer.render(GUIScene, GUICamera)
-			})
-			
+				app.renderer.render(HelperScene, gBuffer.camera);
+				app.renderer.render(GUIScene, GUICamera);
+			});
+
 			const controls = new OrbitControls(gBuffer.camera, app.renderer.domElement);
 			gBuffer.camera.position.set(2.5, 2.5, 2);
 			gBuffer.camera.lookAt(0, 0, 0);
